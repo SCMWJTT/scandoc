@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ScanDoc</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1d242e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#1d242e; --panel:#262f3b; --panel2:#2f3a48; --text:#eef1f4; --muted:#9aa7b6;
+  --accent:#ffb020; --accent-text:#1b1b1b; --line:#3a4656; --danger:#ff6b6b; --ok:#5fd18a;
+  color-scheme:dark;
+}
+[data-theme=midnight]{--bg:#0d1117;--panel:#161b22;--panel2:#1f2630;--text:#e6edf3;--muted:#8b97a5;--accent:#58a6ff;--accent-text:#0d1117;--line:#2b3440}
+[data-theme=forest]{--bg:#17251d;--panel:#1f3226;--panel2:#294132;--text:#eaf3ec;--muted:#98b2a0;--accent:#9be37a;--accent-text:#12200f;--line:#35513f}
+[data-theme=berry]{--bg:#2a1722;--panel:#38202e;--panel2:#472a3b;--text:#f6e9f0;--muted:#c0a0b3;--accent:#ff8fb8;--accent-text:#2a1019;--line:#5a3a4d}
+[data-theme=light]{--bg:#eef1f4;--panel:#ffffff;--panel2:#e3e8ee;--text:#1c2430;--muted:#5d6b7b;--accent:#d97706;--accent-text:#ffffff;--line:#cdd5de;--danger:#c62828;--ok:#1e8e4e;color-scheme:light}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg);
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.screen.on{display:flex}
+.bar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line);min-height:52px}
+.bar .title{flex:1;min-width:0;font-weight:600;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ib{width:42px;height:42px;border-radius:10px;border:0;background:transparent;font-size:1.4rem;line-height:1}
+.ib:active{background:var(--panel2)}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px 14px;font-weight:600}
+.btn:active{filter:brightness(1.15)}
+.btn.primary{background:var(--accent);color:var(--accent-text);border-color:transparent}
+.btn.danger{color:var(--danger)}
+.btn.sm{padding:7px 11px;font-size:.9rem}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.scroll{flex:1;overflow-y:auto;padding:12px}
+.muted{color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+
+/* home */
+.bigbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.bigbtns .btn{padding:18px 10px;font-size:1.05rem}
+.search{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);margin-bottom:10px}
+.dlist{display:flex;flex-direction:column;gap:8px}
+.ditem{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;text-align:left;width:100%}
+.ditem img,.ditem .ph{width:56px;height:72px;object-fit:contain;background:#fff;border-radius:4px;flex:none}
+.ditem .ph{background:var(--panel2)}
+.ditem .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ditem .m{font-size:.85rem;color:var(--muted)}
+.ditem>div{min-width:0}
+.empty{text-align:center;color:var(--muted);padding:40px 20px}
+
+/* doc */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(min-width:640px){.pgrid{grid-template-columns:repeat(4,1fr)}}
+.pcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pcard .im{display:flex;align-items:center;justify-content:center;aspect-ratio:3/4;background:var(--panel2);width:100%;border:0;padding:6px}
+.pcard .im img{max-width:100%;max-height:100%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.pcard .tools{display:flex;justify-content:space-between;align-items:center;padding:2px 4px}
+.pcard .tools span{font-size:.85rem;color:var(--muted);padding:0 4px}
+.pcard .tools button{border:0;background:transparent;width:32px;height:34px;font-size:1.05rem;border-radius:8px}
+.pcard .tools button:active{background:var(--panel2)}
+.bottom{display:flex;gap:8px;padding:10px;background:var(--panel);border-top:1px solid var(--line)}
+.bottom .btn{flex:1}
+
+/* editor */
+#stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;background:#10151b;overflow:hidden}
+#cv{touch-action:none;display:none}
+#pv{display:none;max-width:calc(100% - 20px);max-height:calc(100% - 20px);background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.6)}
+#loupe{position:absolute;top:8px;width:110px;height:110px;border-radius:50%;border:3px solid var(--accent);display:none;pointer-events:none;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.6)}
+#panel{background:var(--panel);border-top:1px solid var(--line);max-height:42vh;overflow-y:auto;padding:10px 12px}
+.pane{display:none}.pane.on{display:block}
+.tabs{display:flex;background:var(--panel);border-top:1px solid var(--line)}
+.tabs button{flex:1;padding:13px 4px;border:0;background:transparent;font-weight:600;color:var(--muted);border-top:3px solid transparent}
+.tabs button.on{color:var(--text);border-top-color:var(--accent)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chip{border:1px solid var(--line);background:var(--panel2);border-radius:999px;padding:7px 13px;font-size:.92rem}
+.chip.on{background:var(--accent);color:var(--accent-text);border-color:transparent;font-weight:600}
+.sl{display:grid;grid-template-columns:92px 1fr 44px;gap:8px;align-items:center;margin:2px 0}
+.sl span{font-size:.92rem;color:var(--muted)}
+.sl b{font-weight:500;text-align:right;font-size:.88rem}
+input[type=range]{width:100%;accent-color:var(--accent);height:30px}
+select,.field{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel2)}
+.lbl{display:block;font-size:.88rem;color:var(--muted);margin:10px 0 4px}
+.hint{font-size:.88rem;color:var(--muted);margin:0 0 8px}
+
+/* sheet, overlays */
+#sheet{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;
+  padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));display:none;z-index:20;box-shadow:0 -8px 30px rgba(0,0,0,.5)}
+#sheet.on{display:block}
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:19}
+#scrim.on{display:block}
+.status{min-height:44px;padding:10px 12px;border-radius:10px;background:var(--panel2);margin:10px 0;font-size:.95rem}
+.status.ok{border-left:4px solid var(--ok)}
+.status.warn{border-left:4px solid var(--accent)}
+#busy{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;flex-direction:column;gap:14px}
+#busy.on{display:flex}
+#busy .msg{background:var(--panel);padding:12px 18px;border-radius:12px;max-width:80%;text-align:center}
+.spin{width:38px;height:38px;border-radius:50%;border:4px solid var(--panel2);border-top-color:var(--accent);animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation-duration:3s}}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:60;display:none;max-width:88%;text-align:center;font-size:.95rem}
+#toast.on{display:block}
+.setrow{margin-bottom:6px}
+.about{font-size:.9rem;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<section id="home" class="screen on">
+  <div class="bar"><div class="title">ScanDoc</div><button class="ib" id="hSet" aria-label="Settings">&#9881;</button></div>
+  <div class="scroll">
+    <div class="bigbtns">
+      <button class="btn primary" id="hCam">Camera</button>
+      <button class="btn" id="hGal">Gallery</button>
+    </div>
+    <input class="search" id="hSearch" type="search" placeholder="Search documents" style="display:none">
+    <div class="dlist" id="hList"></div>
+  </div>
+</section>
+
+<!-- DOCUMENT -->
+<section id="doc" class="screen">
+  <div class="bar">
+    <button class="ib" id="dBack" aria-label="Back">&#8249;</button>
+    <div class="title" id="dTitle"></div>
+    <button class="ib" id="dRename" aria-label="Rename">&#9998;</button>
+    <button class="ib" id="dDelete" aria-label="Delete document">&#128465;</button>
+  </div>
+  <div class="scroll"><div class="pgrid" id="dGrid"></div><p class="muted" id="dInfo" style="margin-top:12px"></p></div>
+  <div class="bottom">
+    <button class="btn" id="dCam">+ Camera</button>
+    <button class="btn" id="dGal">+ Gallery</button>
+    <button class="btn primary" id="dSend">Send</button>
+  </div>
+</section>
+
+<!-- EDITOR -->
+<section id="editor" class="screen">
+  <div class="bar">
+    <button class="ib" id="eBack" aria-label="Back">&#8249;</button>
+    <button class="ib" id="ePrev" aria-label="Previous page">&#9664;</button>
+    <div class="title" id="eTitle" style="text-align:center"></div>
+    <button class="ib" id="eNext" aria-label="Next page">&#9654;</button>
+    <button class="btn sm primary" id="eDone">Done</button>
+  </div>
+  <div id="stage"><canvas id="cv"></canvas><canvas id="pv"></canvas><canvas id="loupe"></canvas></div>
+  <div id="panel">
+    <div class="pane" id="p-crop">
+      <p class="hint">Drag the four corners onto the edges of the document.</p>
+      <div class="row">
+        <button class="btn sm" id="cRotL">&#10226; Rotate</button>
+        <button class="btn sm" id="cRotR">Rotate &#10227;</button>
+        <button class="btn sm" id="cFull">Full image</button>
+        <button class="btn sm" id="cReset">Reset</button>
+      </div>
+    </div>
+    <div class="pane" id="p-clean"></div>
+    <div class="pane" id="p-page"></div>
+  </div>
+  <div class="tabs">
+    <button data-tab="crop">Crop</button><button data-tab="clean">Clean</button><button data-tab="page">Page</button>
+  </div>
+</section>
+
+<!-- SETTINGS -->
+<section id="settings" class="screen">
+  <div class="bar"><button class="ib" id="sBack" aria-label="Back">&#8249;</button><div class="title">Settings</div></div>
+  <div class="scroll" id="sBody"></div>
+</section>
+
+<!-- EXPORT SHEET -->
+<div id="scrim"></div>
+<div id="sheet">
+  <div class="row" style="margin-bottom:6px"><b class="grow" id="xTitle">Send</b><button class="ib" id="xClose" aria-label="Close">&#10005;</button></div>
+  <span class="lbl" style="margin-top:0">Format</span>
+  <div class="chips" id="xFmt"></div>
+  <span class="lbl">Size</span>
+  <div class="chips" id="xSize"></div>
+  <div class="status" id="xStatus">Preparing...</div>
+  <div class="row"><button class="btn primary grow" id="xSend" disabled>Send</button><button class="btn grow" id="xSave" disabled>Save to phone</button></div>
+</div>
+
+<div id="busy"><div class="spin"></div><div class="msg" id="busyMsg"></div></div>
+<div id="toast"></div>
+
+<input type="file" id="inCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="inGal" accept="image/*" multiple hidden>
+
+<script src="config.js"></script>
+<script>
+'use strict';
+const CFG = window.CONFIG;
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const toBlob = (c, t = 'image/jpeg', q = 0.9) => new Promise(r => c.toBlob(r, t, q));
+const tick = () => new Promise(r => setTimeout(r, 0));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtSize = b => b < 1024 ? b + ' B' : b < 1048576 ? Math.round(b / 1024) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+const fmtDate = t => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+let toastTimer;
+function toast(msg, ms = 2800) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), ms);
+}
+function busy(msg) {
+  const b = $('#busy');
+  if (!msg) { b.classList.remove('on'); return; }
+  $('#busyMsg').textContent = msg; b.classList.add('on');
+}
+
+/* ============ settings ============ */
+const SKEY = 'scandoc';
+let S;
+try { S = Object.assign({}, CFG.defaults, JSON.parse(localStorage.getItem(SKEY) || '{}')); }
+catch (e) { S = Object.assign({}, CFG.defaults); }
+const saveS = () => { try { localStorage.setItem(SKEY, JSON.stringify(S)); } catch (e) {} };
+function applyTheme() {
+  document.documentElement.dataset.theme = S.theme;
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m) m.content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#1d242e';
+}
+
+/* ============ storage (IndexedDB) ============ */
+let db;
+function openDb() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('scandoc', 1);
+    r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('docs', { keyPath: 'id' }); d.createObjectStore('images', { keyPath: 'id' }); };
+    r.onsuccess = () => { db = r.result; res(); };
+    r.onerror = () => rej(r.error);
+  });
+}
+function tx(stores, mode, fn) {
+  return new Promise((res, rej) => {
+    const t = db.transaction(stores, mode);
+    const out = fn(t);
+    t.oncomplete = () => res(out && out.result);
+    t.onerror = t.onabort = () => rej(t.error);
+  });
+}
+const dbGet = (st, id) => tx(st, 'readonly', t => t.objectStore(st).get(id));
+const dbPut = (st, v) => tx(st, 'readwrite', t => t.objectStore(st).put(v));
+const dbDel = (st, id) => tx(st, 'readwrite', t => t.objectStore(st).delete(id));
+const dbAll = st => tx(st, 'readonly', t => t.objectStore(st).getAll());
+const dbClear = () => tx(['docs', 'images'], 'readwrite', t => { t.objectStore('docs').clear(); t.objectStore('images').clear(); });
+
+/* ============ PIPELINE (pure image code, no screen access) ============ */
+// <<PIPELINE
+function homography(q) {
+  // unit square (0,0)(1,0)(1,1)(0,1) -> quad q[0..3] (TL, TR, BR, BL)
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = [q[0].x, q[0].y, q[1].x, q[1].y, q[2].x, q[2].y, q[3].x, q[3].y];
+  const sx = x0 - x1 + x2 - x3, sy = y0 - y1 + y2 - y3;
+  let a, b, c, d, e, f, g, h;
+  if (Math.abs(sx) < 1e-9 && Math.abs(sy) < 1e-9) {
+    a = x1 - x0; b = x2 - x1; c = x0; d = y1 - y0; e = y2 - y1; f = y0; g = 0; h = 0;
+  } else {
+    const dx1 = x1 - x2, dx2 = x3 - x2, dy1 = y1 - y2, dy2 = y3 - y2;
+    const den = dx1 * dy2 - dx2 * dy1 || 1e-9;
+    g = (sx * dy2 - dx2 * sy) / den;
+    h = (dx1 * sy - sx * dy1) / den;
+    a = x1 - x0 + g * x1; b = x3 - x0 + h * x3; c = x0;
+    d = y1 - y0 + g * y1; e = y3 - y0 + h * y3; f = y0;
+  }
+  return { a, b, c, d, e, f, g, h };
+}
+
+const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+
+function quadSize(corners, W, H) {
+  const P = corners.map(p => ({ x: p.x * W, y: p.y * H }));
+  return { w: (dist(P[0], P[1]) + dist(P[3], P[2])) / 2, h: (dist(P[0], P[3]) + dist(P[1], P[2])) / 2 };
+}
+
+// Flatten the quad (pixel coords in src canvas) into a cw x ch image.
+function warp(src, q, cw, ch) {
+  const qw = Math.max(dist(q[0], q[1]), dist(q[3], q[2])), qh = Math.max(dist(q[0], q[3]), dist(q[1], q[2]));
+  const r = Math.max(qw / cw, qh / ch);
+  let s = src, qq = q;
+  if (r > 1.5) {                       // pre-shrink so bilinear sampling does not alias
+    const sc = 1.5 / r;
+    s = mk(Math.max(1, Math.round(src.width * sc)), Math.max(1, Math.round(src.height * sc)));
+    const x = s.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, s.width, s.height);
+    qq = q.map(p => ({ x: p.x * s.width / src.width, y: p.y * s.height / src.height }));
+  }
+  const sd = s.getContext('2d').getImageData(0, 0, s.width, s.height);
+  const sw = sd.width, sh = sd.height, S8 = sd.data;
+  const out = new ImageData(cw, ch), o = out.data;
+  const Hm = homography(qq);
+  const maxX = sw - 1.001, maxY = sh - 1.001;
+  for (let j = 0; j < ch; j++) {
+    const v = (j + 0.5) / ch;
+    for (let i = 0; i < cw; i++) {
+      const u = (i + 0.5) / cw;
+      const w = Hm.g * u + Hm.h * v + 1;
+      let sx = (Hm.a * u + Hm.b * v + Hm.c) / w - 0.5, sy = (Hm.d * u + Hm.e * v + Hm.f) / w - 0.5;
+      sx = sx < 0 ? 0 : sx > maxX ? maxX : sx;
+      sy = sy < 0 ? 0 : sy > maxY ? maxY : sy;
+      const x0 = sx | 0, y0 = sy | 0, fx = sx - x0, fy = sy - y0;
+      const i00 = (y0 * sw + x0) * 4, i10 = i00 + 4, i01 = i00 + sw * 4, i11 = i01 + 4;
+      const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+      const p = (j * cw + i) * 4;
+      o[p]     = S8[i00] * w00 + S8[i10] * w10 + S8[i01] * w01 + S8[i11] * w11;
+      o[p + 1] = S8[i00 + 1] * w00 + S8[i10 + 1] * w10 + S8[i01 + 1] * w01 + S8[i11 + 1] * w11;
+      o[p + 2] = S8[i00 + 2] * w00 + S8[i10 + 2] * w10 + S8[i01 + 2] * w01 + S8[i11 + 2] * w11;
+      o[p + 3] = 255;
+    }
+  }
+  return out;
+}
+
+// Running-sum box blur on RGBA (alpha forced to 255). Row-wise passes keep memory access sequential.
+function boxBlur(src, w, h, r) {
+  const st = w * 4, dd = 2 * r + 1, inv = 1 / dd;
+  const tmp = new Uint8ClampedArray(src.length), out = new Uint8ClampedArray(src.length);
+  for (let y = 0; y < h; y++) {
+    const row = y * st;
+    let s0 = 0, s1 = 0, s2 = 0;
+    for (let x = -r; x <= r; x++) { const k = row + (x < 0 ? 0 : x >= w ? w - 1 : x) * 4; s0 += src[k]; s1 += src[k + 1]; s2 += src[k + 2]; }
+    for (let x = 0; x < w; x++) {
+      const o = row + x * 4;
+      tmp[o] = s0 * inv; tmp[o + 1] = s1 * inv; tmp[o + 2] = s2 * inv;
+      const xi = row + (x + r + 1 >= w ? w - 1 : x + r + 1) * 4, xo = row + (x - r < 0 ? 0 : x - r) * 4;
+      s0 += src[xi] - src[xo]; s1 += src[xi + 1] - src[xo + 1]; s2 += src[xi + 2] - src[xo + 2];
+    }
+  }
+  const sums = new Int32Array(w * 3);
+  for (let y = -r; y <= r; y++) {
+    const ry = (y < 0 ? 0 : y >= h ? h - 1 : y) * st;
+    for (let x = 0, k = 0; x < w; x++, k += 3) { const q = ry + x * 4; sums[k] += tmp[q]; sums[k + 1] += tmp[q + 1]; sums[k + 2] += tmp[q + 2]; }
+  }
+  for (let y = 0; y < h; y++) {
+    const ro = y * st, ri = (y + r + 1 >= h ? h - 1 : y + r + 1) * st, rd = (y - r < 0 ? 0 : y - r) * st;
+    for (let x = 0, k = 0; x < w; x++, k += 3) {
+      const o = ro + x * 4, qi = ri + x * 4, qd = rd + x * 4;
+      out[o] = sums[k] * inv; out[o + 1] = sums[k + 1] * inv; out[o + 2] = sums[k + 2] * inv; out[o + 3] = 255;
+      sums[k] += tmp[qi] - tmp[qd]; sums[k + 1] += tmp[qi + 1] - tmp[qd + 1]; sums[k + 2] += tmp[qi + 2] - tmp[qd + 2];
+    }
+  }
+  return out;
+}
+
+// Estimate the paper colour everywhere (shadows, yellowing) from a small copy.
+function estimateBg(img) {
+  const W = img.width, H = img.height;
+  const sw = Math.max(24, Math.round(W / 12)), sh = Math.max(24, Math.round(H / 12));
+  const full = mk(W, H); full.getContext('2d').putImageData(img, 0, 0);
+  const small = mk(sw, sh), sx = small.getContext('2d');
+  sx.imageSmoothingQuality = 'high'; sx.drawImage(full, 0, 0, sw, sh);
+  const sd = sx.getImageData(0, 0, sw, sh), d = sd.data;
+  const k = 2, tmp = new Uint8ClampedArray(d.length);
+  // max filter (removes dark text), horizontal then vertical
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) for (let c = 0; c < 3; c++) {
+    let m = 0; for (let t = -k; t <= k; t++) { const v = d[(y * sw + Math.min(sw - 1, Math.max(0, x + t))) * 4 + c]; if (v > m) m = v; }
+    tmp[(y * sw + x) * 4 + c] = m;
+  }
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) for (let c = 0; c < 3; c++) {
+    let m = 0; for (let t = -k; t <= k; t++) { const v = tmp[(Math.min(sh - 1, Math.max(0, y + t)) * sw + x) * 4 + c]; if (v > m) m = v; }
+    d[(y * sw + x) * 4 + c] = m;
+  }
+  const bl = boxBlur(d, sw, sh, 3);
+  for (let i = 0; i < d.length; i++) d[i] = bl[i];
+  sx.putImageData(sd, 0, 0);
+  const fx = full.getContext('2d'); fx.clearRect(0, 0, W, H); fx.imageSmoothingQuality = 'high'; fx.drawImage(small, 0, 0, W, H);
+  return fx.getImageData(0, 0, W, H).data;
+}
+
+// Cleanup in place. bg = estimateBg() result, needed when c.paperWhite.
+function applyClean(img, bg, c) {
+  const d = img.data, W = img.width, H = img.height, n = d.length;
+  if (c.paperWhite && bg) {
+    const gain = new Float32Array(256);                       // gain per paper level
+    for (let v = 0; v < 256; v++) gain[v] = 255 / (Math.max(40, v) * CFG.paperBias);
+    for (let i = 0; i < n; i += 4) {
+      d[i] = d[i] * gain[bg[i]]; d[i + 1] = d[i + 1] * gain[bg[i + 1]]; d[i + 2] = d[i + 2] * gain[bg[i + 2]];
+    }
+  }
+  const sat = c.gray ? 0 : (c.saturation == null ? 100 : c.saturation) / 100;
+  if (sat !== 1) {
+    for (let i = 0; i < n; i += 4) {
+      const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      d[i] = l + (d[i] - l) * sat; d[i + 1] = l + (d[i + 1] - l) * sat; d[i + 2] = l + (d[i + 2] - l) * sat;
+    }
+  }
+  if (c.exposure || c.brightness || c.contrast) {
+    const gain = Math.pow(2, (c.exposure || 0) / 100), cc = (c.contrast || 0) * 1.5, bri = (c.brightness || 0) * 1.28;
+    const f = (259 * (cc + 255)) / (255 * (259 - cc));
+    const lut = new Uint8ClampedArray(256);
+    for (let v = 0; v < 256; v++) lut[v] = f * (v * gain - 128) + 128 + bri;
+    for (let i = 0; i < n; i += 4) { d[i] = lut[d[i]]; d[i + 1] = lut[d[i + 1]]; d[i + 2] = lut[d[i + 2]]; }
+  }
+  if (c.sharpness > 0) {
+    const r = Math.max(1, Math.round(Math.max(W, H) / 900)), bl = boxBlur(d, W, H, r), a = c.sharpness / 100 * 1.5;
+    for (let i = 0; i < n; i += 4) {
+      d[i] = d[i] + a * (d[i] - bl[i]); d[i + 1] = d[i + 1] + a * (d[i + 1] - bl[i + 1]); d[i + 2] = d[i + 2] + a * (d[i + 2] - bl[i + 2]);
+    }
+  }
+  if (c.bw) {
+    const lv = c.level;
+    for (let i = 0; i < n; i += 4) {
+      const v = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) < lv ? 0 : 255;
+      d[i] = d[i + 1] = d[i + 2] = v;
+    }
+  }
+}
+
+const pageLongIn = doc => (doc.pageSize !== 'orig' && CFG.pageSizes[doc.pageSize])
+  ? Math.max(CFG.pageSizes[doc.pageSize].w, CFG.pageSizes[doc.pageSize].h) : CFG.origLongInches;
+
+// Where the warped page sits on the paper. ppi = pixels per inch.
+function layout(doc, nat, ppi) {
+  const ar = nat.w / nat.h, m = doc.margin, ps = CFG.pageSizes[doc.pageSize];
+  let pw, ph, cw, ch, dx, dy;
+  if (!ps || doc.pageSize === 'orig') {
+    const cl = Math.max(1, CFG.origLongInches - 2 * m);
+    const cwi = ar >= 1 ? cl : cl * ar, chi = ar >= 1 ? cl / ar : cl;
+    pw = (cwi + 2 * m) * ppi; ph = (chi + 2 * m) * ppi; cw = cwi * ppi; ch = chi * ppi; dx = m * ppi; dy = m * ppi;
+  } else {
+    let pwi = ps.w, phi = ps.h; if (ar > CFG.landscapeAbove) { pwi = ps.h; phi = ps.w; }
+    pw = pwi * ppi; ph = phi * ppi;
+    if (doc.fit === 'fill') { cw = Math.max(pw, ph * ar); ch = cw / ar; dx = (pw - cw) / 2; dy = (ph - ch) / 2; }
+    else if (doc.fit === 'stretch') { cw = pw; ch = ph; dx = 0; dy = 0; }
+    else { const aw = pw - 2 * m * ppi, ah = ph - 2 * m * ppi; cw = Math.min(aw, ah * ar); ch = cw / ar; dx = (pw - cw) / 2; dy = (ph - ch) / 2; }
+  }
+  return { pw: Math.round(pw), ph: Math.round(ph), cw: Math.max(1, Math.round(cw)), ch: Math.max(1, Math.round(ch)), dx: Math.round(dx), dy: Math.round(dy), wIn: pw / ppi, hIn: ph / ppi };
+}
+
+// Full page render. src = rotated working or full canvas. cache (optional) keeps the warp and paper estimate.
+function renderPage(doc, page, src, ppi, cache) {
+  const W = src.width, H = src.height;
+  const L = layout(doc, quadSize(page.corners, W, H), ppi);
+  const key = [L.cw, L.ch, W, H, page.corners.map(p => p.x.toFixed(4) + ',' + p.y.toFixed(4)).join(';')].join('|');
+  let raw;
+  if (cache && cache.key === key) raw = cache.raw;
+  else {
+    raw = warp(src, page.corners.map(p => ({ x: p.x * W, y: p.y * H })), L.cw, L.ch);
+    if (cache) { cache.key = key; cache.raw = raw; cache.bg = null; }
+  }
+  const out = new ImageData(new Uint8ClampedArray(raw.data), raw.width, raw.height);
+  let bg = null;
+  if (page.clean.paperWhite) { bg = (cache && cache.bg) || estimateBg(raw); if (cache) cache.bg = bg; }
+  applyClean(out, bg, page.clean);
+  const pc = mk(L.pw, L.ph), x = pc.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, L.pw, L.ph);
+  const tmp = mk(L.cw, L.ch); tmp.getContext('2d').putImageData(out, 0, 0);
+  x.drawImage(tmp, L.dx, L.dy);
+  return { canvas: pc, L };
+}
+
+function rotCanvas(src, rot, maxSide) {
+  const sw = src.width, sh = src.height, s = Math.min(1, maxSide / Math.max(sw, sh));
+  const w = Math.round(sw * s), h = Math.round(sh * s), swap = rot % 180 !== 0;
+  const c = mk(swap ? h : w, swap ? w : h), x = c.getContext('2d');
+  x.imageSmoothingQuality = 'high'; x.translate(c.width / 2, c.height / 2); x.rotate(rot * Math.PI / 180);
+  x.drawImage(src, -w / 2, -h / 2, w, h);
+  return c;
+}
+
+const rotCornersCW = c => { const m = c.map(p => ({ x: 1 - p.y, y: p.x })); return [m[3], m[0], m[1], m[2]]; };
+function rotatePage(page, dir) {
+  const n = dir > 0 ? 1 : 3;
+  for (let i = 0; i < n; i++) page.corners = rotCornersCW(page.corners);
+  page.rot = (page.rot + 90 * n) % 360;
+}
+
+// Minimal PDF writer: one JPEG per page. pages = [{jpeg:Uint8Array, w, h, wPt, hPt}]
+function buildPdf(pages, title) {
+  const enc = new TextEncoder(), chunks = [], off = []; let pos = 0;
+  const push = x => { const b = typeof x === 'string' ? enc.encode(x) : x; chunks.push(b); pos += b.length; };
+  const obj = (n, dict, stream) => {
+    off[n] = pos; push(n + ' 0 obj\n' + dict + '\n');
+    if (stream) { push('stream\n'); push(stream); push('\nendstream\n'); }
+    push('endobj\n');
+  };
+  const safe = String(title || 'Scan').replace(/[^\x20-\x7e]/g, '').replace(/[\\()]/g, '') || 'Scan';
+  const d = new Date(), p2 = n => String(n).padStart(2, '0');
+  const stamp = 'D:' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
+  push(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a, 0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]));
+  const kids = pages.map((_, i) => (4 + i * 3) + ' 0 R').join(' ');
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, '<< /Type /Pages /Kids [' + kids + '] /Count ' + pages.length + ' >>');
+  obj(3, '<< /Title (' + safe + ') /Producer (ScanDoc) /CreationDate (' + stamp + ') >>');
+  pages.forEach((p, i) => {
+    const pg = 4 + i * 3, ct = pg + 1, im = pg + 2, wp = p.wPt.toFixed(2), hp = p.hPt.toFixed(2);
+    obj(pg, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + wp + ' ' + hp + '] /Resources << /XObject << /Im0 ' + im + ' 0 R >> >> /Contents ' + ct + ' 0 R >>');
+    const content = enc.encode('q ' + wp + ' 0 0 ' + hp + ' 0 0 cm /Im0 Do Q');
+    obj(ct, '<< /Length ' + content.length + ' >>', content);
+    obj(im, '<< /Type /XObject /Subtype /Image /Width ' + p.w + ' /Height ' + p.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + p.jpeg.length + ' >>', p.jpeg);
+  });
+  const total = 4 + pages.length * 3, xref = pos;
+  push('xref\n0 ' + total + '\n0000000000 65535 f \n');
+  for (let n = 1; n < total; n++) push(String(off[n]).padStart(10, '0') + ' 00000 n \n');
+  push('trailer\n<< /Size ' + total + ' /Root 1 0 R /Info 3 0 R >>\nstartxref\n' + xref + '\n%%EOF\n');
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+// PIPELINE>>
+
+/* ============ model ============ */
+const newClean = name => Object.assign({}, CFG.cleanBase, CFG.presets[name] || {}, { preset: name });
+const defCorners = () => [{ x: .06, y: .06 }, { x: .94, y: .06 }, { x: .94, y: .94 }, { x: .06, y: .94 }];
+const fullCorners = () => [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }];
+const newPage = img => ({ id: uid(), img, rot: 0, corners: defCorners(), clean: newClean(S.preset), thumb: '' });
+const newDoc = () => ({ id: uid(), title: 'Scan ' + new Date().toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+  created: Date.now(), modified: Date.now(), pageSize: S.pageSize, fit: S.fit, margin: S.margin, pages: [] });
+
+// working images (rotated, shrunk) kept in memory
+const workCache = new Map();
+async function getWork(page, maxSide) {
+  const key = page.img + '|' + page.rot + '|' + maxSide;
+  if (workCache.has(key)) return workCache.get(key);
+  const rec = await dbGet('images', page.img);
+  if (!rec) throw new Error('image missing');
+  const bmp = await createImageBitmap(rec.blob);
+  const c = rotCanvas(bmp, page.rot, maxSide);
+  bmp.close && bmp.close();
+  if (maxSide !== Infinity) {
+    workCache.set(key, c);
+    while (workCache.size > CFG.cacheImages) workCache.delete(workCache.keys().next().value);
+  }
+  return c;
+}
+
+async function makeThumb(doc, page) {
+  const work = await getWork(page, CFG.workSide);
+  const ppi = CFG.thumbSide / pageLongIn(doc);
+  const r = renderPage(doc, page, work, ppi, null);
+  return r.canvas.toDataURL('image/jpeg', 0.7);
+}
+
+// Decode, fix orientation, shrink, strip metadata (EXIF/GPS) by re-encoding.
+async function normalizeImage(file) {
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch (e) { bmp = await createImageBitmap(file); }
+  const s = Math.min(1, CFG.maxSide / Math.max(bmp.width, bmp.height));
+  const c = mk(Math.round(bmp.width * s), Math.round(bmp.height * s)), x = c.getContext('2d');
+  x.imageSmoothingQuality = 'high'; x.drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close && bmp.close();
+  return toBlob(c, 'image/jpeg', 0.92);
+}
+
+/* ============ app state & navigation ============ */
+let curDoc = null;       // open document
+let importTarget = null; // document that new images are added to (null = new document)
+let ed = null;           // editor state
+let ex = null;           // export sheet state
+const SCREENS = ['home', 'doc', 'editor', 'settings'];
+
+function show(name) {
+  const base = name === 'export' ? 'doc' : name;
+  SCREENS.forEach(s => $('#' + s).classList.toggle('on', s === base));
+  $('#sheet').classList.toggle('on', name === 'export');
+  $('#scrim').classList.toggle('on', name === 'export');
+}
+let curScreen = 'home';
+function nav(name) { history.pushState({ s: name }, ''); goTo(name); }
+function goTo(name) {
+  const leaving = curScreen;
+  if (leaving === 'editor' && name !== 'editor') leaveEditor();
+  if (leaving === 'export' && name !== 'export') { if (ex) ex.token++; }
+  if ((name === 'doc' || name === 'export' || name === 'editor') && !curDoc) name = 'home';
+  curScreen = name;
+  show(name);
+  if (name === 'home') refreshHome();
+  if (name === 'doc') renderDoc();
+  if (name === 'settings') renderSettings();
+  if (name === 'editor') enterEditor();
+  if (name === 'export') openExport();
+}
+window.addEventListener('popstate', e => goTo((e.state && e.state.s) || 'home'));
+const back = () => history.back();
+
+/* ============ import ============ */
+async function importFiles(files) {
+  files = [...files].filter(f => (f.type || '').startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(f.name || ''));
+  if (!files.length) { toast('No images found'); return; }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  const doc = importTarget || newDoc();
+  const isNew = !importTarget;
+  const first = doc.pages.length;
+  let ok = 0;
+  try {
+    for (let i = 0; i < files.length; i++) {
+      busy('Importing ' + (i + 1) + ' of ' + files.length + '...');
+      await tick();
+      try {
+        const blob = await normalizeImage(files[i]);
+        const img = uid();
+        await dbPut('images', { id: img, blob });
+        const page = newPage(img);
+        doc.pages.push(page);
+        try { page.thumb = await makeThumb(doc, page); } catch (e) {}
+        ok++;
+      } catch (e) {
+        toast('Could not read ' + (files[i].name || 'image'));
+      }
+    }
+    if (ok) { doc.modified = Date.now(); await dbPut('docs', doc); }
+  } finally { busy(false); }
+  if (!ok) return;
+  curDoc = doc;
+  toast('Imported ' + ok + (ok === 1 ? ' page' : ' pages'));
+  if (isNew) nav('doc'); else if (curScreen !== 'doc') goTo('doc');
+  if (ok === 1) { ed = { idx: first }; nav('editor'); }
+  else renderDoc();
+}
+function pick(input, target) { importTarget = target; input.value = ''; input.click(); }
+$('#inCam').addEventListener('change', e => importFiles(e.target.files));
+$('#inGal').addEventListener('change', e => importFiles(e.target.files));
+document.addEventListener('paste', e => {
+  const fs = [...(e.clipboardData ? e.clipboardData.files : [])];
+  if (fs.length && (curScreen === 'home' || curScreen === 'doc')) { importTarget = curScreen === 'doc' ? curDoc : null; importFiles(fs); }
+});
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer && e.dataTransfer.files.length && (curScreen === 'home' || curScreen === 'doc')) { importTarget = curScreen === 'doc' ? curDoc : null; importFiles(e.dataTransfer.files); }
+});
+
+/* ============ home ============ */
+let allDocs = [];
+async function refreshHome() {
+  allDocs = (await dbAll('docs')).sort((a, b) => b.modified - a.modified);
+  drawHome();
+}
+function drawHome() {
+  const q = $('#hSearch').value.trim().toLowerCase();
+  $('#hSearch').style.display = allDocs.length > 5 ? '' : 'none';
+  const list = allDocs.filter(d => !q || d.title.toLowerCase().includes(q));
+  const box = $('#hList');
+  if (!allDocs.length) { box.innerHTML = '<div class="empty">No documents yet.<br>Tap Camera to scan, or Gallery to import photos and screenshots.</div>'; return; }
+  if (!list.length) { box.innerHTML = '<div class="empty">No documents match.</div>'; return; }
+  box.innerHTML = list.map(d => {
+    const t = d.pages[0] && d.pages[0].thumb;
+    return '<button class="ditem" data-id="' + d.id + '">' + (t ? '<img alt="" src="' + t + '">' : '<div class="ph"></div>') +
+      '<div><div class="t">' + esc(d.title) + '</div><div class="m">' + d.pages.length + (d.pages.length === 1 ? ' page' : ' pages') + ' &middot; ' + fmtDate(d.modified) + '</div></div></button>';
+  }).join('');
+}
+$('#hSearch').addEventListener('input', drawHome);
+$('#hList').addEventListener('click', e => {
+  const b = e.target.closest('.ditem'); if (!b) return;
+  curDoc = allDocs.find(d => d.id === b.dataset.id); nav('doc');
+});
+$('#hCam').onclick = () => pick($('#inCam'), null);
+$('#hGal').onclick = () => pick($('#inGal'), null);
+$('#hSet').onclick = () => nav('settings');
+
+/* ============ document screen ============ */
+function renderDoc() {
+  const d = curDoc; if (!d) return;
+  $('#dTitle').textContent = d.title;
+  const n = d.pages.length;
+  $('#dGrid').innerHTML = d.pages.map((p, i) =>
+    '<div class="pcard" data-i="' + i + '"><button class="im" data-a="edit">' + (p.thumb ? '<img alt="Page ' + (i + 1) + '" src="' + p.thumb + '">' : '') + '</button>' +
+    '<div class="tools"><span>' + (i + 1) + '</span>' +
+    '<button data-a="left" aria-label="Move earlier"' + (i === 0 ? ' disabled style="opacity:.3"' : '') + '>&#9664;</button>' +
+    '<button data-a="right" aria-label="Move later"' + (i === n - 1 ? ' disabled style="opacity:.3"' : '') + '>&#9654;</button>' +
+    '<button data-a="rot" aria-label="Rotate">&#10227;</button>' +
+    '<button data-a="dup" aria-label="Duplicate">&#10064;</button>' +
+    '<button data-a="del" aria-label="Delete page">&#10005;</button></div></div>').join('');
+  const L = d.pageSize === 'orig' ? 'Original aspect' : CFG.pageSizes[d.pageSize].name.split(' (')[0];
+  $('#dInfo').textContent = n + (n === 1 ? ' page' : ' pages') + ' \u00b7 ' + L + ', ' + d.fit + '. Tap a page to crop and clean it.';
+}
+async function saveDoc(d) { d.modified = Date.now(); await dbPut('docs', d); }
+$('#dGrid').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-a]'); if (!b || b.disabled) return;
+  const i = +b.closest('.pcard').dataset.i, d = curDoc, a = b.dataset.a;
+  if (a === 'edit') { ed = { idx: i }; nav('editor'); return; }
+  if (a === 'left' && i > 0) [d.pages[i - 1], d.pages[i]] = [d.pages[i], d.pages[i - 1]];
+  else if (a === 'right' && i < d.pages.length - 1) [d.pages[i + 1], d.pages[i]] = [d.pages[i], d.pages[i + 1]];
+  else if (a === 'rot') { rotatePage(d.pages[i], 1); try { d.pages[i].thumb = await makeThumb(d, d.pages[i]); } catch (x) {} }
+  else if (a === 'dup') { const p = JSON.parse(JSON.stringify(d.pages[i])); p.id = uid(); d.pages.splice(i + 1, 0, p); }
+  else if (a === 'del') {
+    if (!confirm('Delete page ' + (i + 1) + '?')) return;
+    const [p] = d.pages.splice(i, 1);
+    if (!d.pages.some(x => x.img === p.img)) await dbDel('images', p.img);
+    if (!d.pages.length) { await dbDel('docs', d.id); curDoc = null; toast('Document deleted (no pages left)'); history.back(); return; }
+  }
+  await saveDoc(d); renderDoc();
+});
+$('#dBack').onclick = back;
+$('#dCam').onclick = () => pick($('#inCam'), curDoc);
+$('#dGal').onclick = () => pick($('#inGal'), curDoc);
+$('#dRename').onclick = async () => {
+  const t = prompt('Document name', curDoc.title);
+  if (t && t.trim()) { curDoc.title = t.trim().slice(0, 80); await saveDoc(curDoc); renderDoc(); }
+};
+$('#dDelete').onclick = async () => {
+  if (!confirm('Delete "' + curDoc.title + '" and all its pages?')) return;
+  for (const p of curDoc.pages) await dbDel('images', p.img);
+  await dbDel('docs', curDoc.id);
+  curDoc = null; toast('Document deleted'); history.back();
+};
+$('#dSend').onclick = () => nav('export');
+
+/* ============ editor ============ */
+const curPage = () => curDoc.pages[ed.idx];
+const SLIDERS = [['exposure', 'Exposure', -100, 100], ['brightness', 'Brightness', -100, 100], ['contrast', 'Contrast', -100, 100],
+  ['sharpness', 'Sharpness', 0, 100], ['saturation', 'Color', 0, 200], ['level', 'Threshold', 60, 230]];
+let saveTimer, previewQueued = false;
+
+async function enterEditor() {
+  if (!ed || ed.idx == null || !curDoc || !curDoc.pages[ed.idx]) { goTo('home'); return; }
+  const idx = ed.idx;
+  ed = { idx, tab: (ed && ed.tab) || 'crop', work: null, cache: {}, view: null, drag: null };
+  busy('Loading page...');
+  try { ed.work = await getWork(curPage(), CFG.workSide); }
+  catch (e) { busy(false); toast('Could not load that page'); history.back(); return; }
+  busy(false);
+  $('#eTitle').textContent = 'Page ' + (idx + 1) + ' of ' + curDoc.pages.length;
+  $('#ePrev').style.visibility = idx > 0 ? 'visible' : 'hidden';
+  $('#eNext').style.visibility = idx < curDoc.pages.length - 1 ? 'visible' : 'hidden';
+  buildCleanPane(); buildPagePane();
+  setTab(ed.tab);
+}
+function setTab(t) {
+  ed.tab = t;
+  $$('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  $$('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + t));
+  $('#cv').style.display = t === 'crop' ? 'block' : 'none';
+  $('#pv').style.display = t === 'crop' ? 'none' : 'block';
+  if (t !== 'crop') $('#loupe').style.display = 'none';
+  requestAnimationFrame(() => { if (t === 'crop') initCrop(); else drawPreview(); });
+}
+$$('.tabs button').forEach(b => b.onclick = () => ed && ed.work && setTab(b.dataset.tab));
+
+function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => persistEditor(false), 500); }
+async function persistEditor(withThumb) {
+  clearTimeout(saveTimer);
+  if (!ed || !ed.work || !curDoc) return;
+  const pg = curPage();
+  if (withThumb) { try { pg.thumb = await makeThumb(curDoc, pg); } catch (e) {} }
+  await saveDoc(curDoc);
+}
+function leaveEditor() {
+  persistEditor(true).then(() => { if (curScreen === 'doc') renderDoc(); else if (curScreen === 'home') refreshHome(); });
+}
+
+async function gotoPage(i) {
+  if (i < 0 || i >= curDoc.pages.length) return;
+  busy('Saving...'); await persistEditor(true); busy(false);
+  ed = { idx: i, tab: ed.tab }; enterEditor();
+}
+$('#eBack').onclick = back; $('#eDone').onclick = back;
+$('#ePrev').onclick = () => gotoPage(ed.idx - 1);
+$('#eNext').onclick = () => gotoPage(ed.idx + 1);
+
+/* ---- crop view ---- */
+function initCrop() {
+  if (!ed || !ed.work) return;
+  const stage = $('#stage'), cv = $('#cv'), dpr = window.devicePixelRatio || 1, pad = 20;
+  const W = ed.work.width, H = ed.work.height;
+  const aw = stage.clientWidth - pad * 2, ah = stage.clientHeight - pad * 2;
+  const ds = Math.min(aw / W, ah / H), iw = Math.floor(W * ds), ih = Math.floor(H * ds);
+  const cw = iw + pad * 2, ch = ih + pad * 2;
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  const bg = mk(Math.round(iw * dpr), Math.round(ih * dpr)), bx = bg.getContext('2d');
+  bx.imageSmoothingQuality = 'high'; bx.drawImage(ed.work, 0, 0, bg.width, bg.height);
+  ed.view = { dpr, pad, iw, ih, ds, cw, ch, bg };
+  drawCrop();
+}
+const cpts = () => { const v = ed.view; return curPage().corners.map(p => ({ x: v.pad + p.x * v.iw, y: v.pad + p.y * v.ih })); };
+function drawCrop() {
+  const v = ed.view; if (!v) return;
+  const cv = $('#cv'), x = cv.getContext('2d'), P = cpts();
+  x.setTransform(v.dpr, 0, 0, v.dpr, 0, 0); x.clearRect(0, 0, v.cw, v.ch);
+  x.drawImage(v.bg, v.pad, v.pad, v.iw, v.ih);
+  x.fillStyle = 'rgba(0,0,0,.5)'; x.beginPath(); x.rect(v.pad, v.pad, v.iw, v.ih);
+  x.moveTo(P[0].x, P[0].y); for (let i = 1; i < 4; i++) x.lineTo(P[i].x, P[i].y); x.closePath(); x.fill('evenodd');
+  const acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ffb020';
+  x.strokeStyle = acc; x.lineWidth = 2; x.beginPath(); x.moveTo(P[0].x, P[0].y); for (let i = 1; i < 4; i++) x.lineTo(P[i].x, P[i].y); x.closePath(); x.stroke();
+  P.forEach(p => { x.beginPath(); x.arc(p.x, p.y, 11, 0, 7); x.fillStyle = '#fff'; x.fill(); x.lineWidth = 3; x.strokeStyle = acc; x.stroke(); });
+}
+function showLoupe(i) {
+  const v = ed.view, L = $('#loupe'), d = 110, dpr = v.dpr, p = curPage().corners[i], work = ed.work;
+  L.width = d * dpr; L.height = d * dpr; L.style.display = 'block';
+  const x = L.getContext('2d'), src = d / (v.ds * 3), cx = p.x * work.width, cy = p.y * work.height;
+  x.fillStyle = '#fff'; x.fillRect(0, 0, L.width, L.height);
+  x.drawImage(work, cx - src / 2, cy - src / 2, src, src, 0, 0, L.width, L.height);
+  x.strokeStyle = '#ff3b30'; x.lineWidth = 1.5 * dpr; x.beginPath();
+  x.moveTo(L.width / 2, L.height * .3); x.lineTo(L.width / 2, L.height * .7); x.moveTo(L.width * .3, L.height / 2); x.lineTo(L.width * .7, L.height / 2); x.stroke();
+  const P = cpts()[i], stage = $('#stage'), cvr = $('#cv').getBoundingClientRect(), sr = stage.getBoundingClientRect();
+  const hx = P.x + cvr.left - sr.left, hy = P.y + cvr.top - sr.top;
+  if (hx < stage.clientWidth / 2 && hy < 150) { L.style.left = 'auto'; L.style.right = '8px'; }
+  else { L.style.right = 'auto'; L.style.left = '8px'; }
+}
+(function cropPointer() {
+  const cv = $('#cv');
+  cv.addEventListener('pointerdown', e => {
+    if (!ed || !ed.view) return;
+    const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, P = cpts();
+    let best = -1, bd = 44;
+    P.forEach((p, i) => { const d = Math.hypot(p.x - px, p.y - py); if (d < bd) { bd = d; best = i; } });
+    if (best < 0) return;
+    ed.drag = { i: best, ox: P[best].x - px, oy: P[best].y - py };
+    cv.setPointerCapture(e.pointerId); showLoupe(best); e.preventDefault();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!ed || !ed.drag) return;
+    const v = ed.view, r = cv.getBoundingClientRect(), d = ed.drag;
+    const nx = clamp((e.clientX - r.left + d.ox - v.pad) / v.iw, 0, 1), ny = clamp((e.clientY - r.top + d.oy - v.pad) / v.ih, 0, 1);
+    curPage().corners[d.i] = { x: nx, y: ny };
+    drawCrop(); showLoupe(d.i);
+  });
+  const end = () => { if (!ed || !ed.drag) return; ed.drag = null; $('#loupe').style.display = 'none'; scheduleSave(); };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+})();
+async function rotateEditor(dir) {
+  rotatePage(curPage(), dir); ed.cache = {};
+  busy('Rotating...'); try { ed.work = await getWork(curPage(), CFG.workSide); } finally { busy(false); }
+  initCrop(); scheduleSave();
+}
+$('#cRotL').onclick = () => rotateEditor(-1);
+$('#cRotR').onclick = () => rotateEditor(1);
+$('#cFull').onclick = () => { curPage().corners = fullCorners(); drawCrop(); scheduleSave(); };
+$('#cReset').onclick = () => { curPage().corners = defCorners(); drawCrop(); scheduleSave(); };
+window.addEventListener('resize', () => { if (curScreen === 'editor' && ed && ed.work && ed.tab === 'crop') initCrop(); });
+
+/* ---- preview (Clean and Page tabs) ---- */
+function drawPreview() {
+  if (!ed || !ed.work) return;
+  const pg = curPage(), ppi = CFG.previewSide / pageLongIn(curDoc);
+  const r = renderPage(curDoc, pg, ed.work, ppi, ed.cache), pv = $('#pv');
+  if (pv.width !== r.L.pw || pv.height !== r.L.ph) { pv.width = r.L.pw; pv.height = r.L.ph; }
+  pv.getContext('2d').drawImage(r.canvas, 0, 0);
+  const info = $('#pgInfo'); if (info) info.textContent = 'Paper: ' + r.L.wIn.toFixed(2) + ' x ' + r.L.hIn.toFixed(2) + ' in';
+}
+function schedulePreview() {
+  if (previewQueued) return; previewQueued = true;
+  requestAnimationFrame(() => { previewQueued = false; drawPreview(); });
+}
+
+/* ---- clean pane ---- */
+function buildCleanPane() {
+  const c = curPage().clean;
+  $('#p-clean').innerHTML =
+    '<div class="chips" id="presets">' + CFG.presetOrder.map(k => '<button class="chip" data-p="' + k + '">' + CFG.presetNames[k] + '</button>').join('') + '</div>' +
+    '<div class="chips"><button class="chip" data-t="paperWhite">Paper white</button><button class="chip" data-t="gray">Gray</button><button class="chip" data-t="bw">Black &amp; white</button></div>' +
+    SLIDERS.map(s => '<label class="sl" data-row="' + s[0] + '"><span>' + s[1] + '</span><input type="range" data-k="' + s[0] + '" min="' + s[2] + '" max="' + s[3] + '" step="1"><b></b></label>').join('') +
+    '<div class="row" style="margin-top:8px"><button class="btn sm" id="clAll">Apply to all pages</button><button class="btn sm" id="clReset">Reset</button></div>';
+  syncCleanPane();
+}
+function syncCleanPane() {
+  const c = curPage().clean;
+  $$('#presets .chip').forEach(b => b.classList.toggle('on', b.dataset.p === c.preset));
+  $$('#p-clean [data-t]').forEach(b => b.classList.toggle('on', !!c[b.dataset.t]));
+  $$('#p-clean input[type=range]').forEach(i => { i.value = c[i.dataset.k]; i.nextElementSibling.textContent = c[i.dataset.k]; });
+  $('#p-clean [data-row=level]').style.display = c.bw ? '' : 'none';
+}
+$('#p-clean').addEventListener('click', e => {
+  const pg = curPage(), t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.p) { pg.clean = newClean(t.dataset.p); }
+  else if (t.dataset.t) { pg.clean[t.dataset.t] = !pg.clean[t.dataset.t]; pg.clean.preset = 'custom'; }
+  else if (t.id === 'clReset') { pg.clean = newClean('original'); }
+  else if (t.id === 'clAll') {
+    curDoc.pages.forEach(p => { p.clean = JSON.parse(JSON.stringify(pg.clean)); });
+    toast('Applied to all ' + curDoc.pages.length + ' pages'); scheduleSave(); return;
+  } else return;
+  syncCleanPane(); schedulePreview(); scheduleSave();
+});
+$('#p-clean').addEventListener('input', e => {
+  const i = e.target; if (!i.dataset.k) return;
+  const c = curPage().clean; c[i.dataset.k] = +i.value; c.preset = 'custom';
+  i.nextElementSibling.textContent = i.value;
+  $$('#presets .chip').forEach(b => b.classList.remove('on'));
+  schedulePreview(); scheduleSave();
+});
+
+/* ---- page pane (applies to the whole document) ---- */
+function buildPagePane() {
+  const d = curDoc;
+  $('#p-page').innerHTML =
+    '<p class="hint">These settings apply to every page of this document. <span id="pgInfo"></span></p>' +
+    '<span class="lbl" style="margin-top:0">Page size</span><select id="pgSize">' + Object.keys(CFG.pageSizes).map(k => '<option value="' + k + '">' + CFG.pageSizes[k].name + '</option>').join('') + '</select>' +
+    '<span class="lbl">Fit</span><select id="pgFit"><option value="fit">Fit: keep proportions, with margins</option><option value="fill">Fill: crop to cover the page</option><option value="stretch">Stretch: distort to fill the page</option></select>' +
+    '<label class="sl" style="grid-template-columns:92px 1fr 54px;margin-top:10px"><span>Margin</span><input type="range" id="pgMargin" min="0" max="1" step="0.05"><b id="pgMarginV"></b></label>';
+  $('#pgSize').value = d.pageSize; $('#pgFit').value = d.fit; $('#pgMargin').value = d.margin; $('#pgMarginV').textContent = d.margin.toFixed(2) + ' in';
+}
+$('#p-page').addEventListener('input', e => {
+  const d = curDoc, id = e.target.id;
+  if (id === 'pgSize') d.pageSize = e.target.value;
+  else if (id === 'pgFit') d.fit = e.target.value;
+  else if (id === 'pgMargin') { d.margin = +e.target.value; $('#pgMarginV').textContent = d.margin.toFixed(2) + ' in'; }
+  else return;
+  schedulePreview(); scheduleSave();
+});
+
+/* ============ export / send ============ */
+function openExport() {
+  ex = { fmt: 'pdf', target: S.target || 0, token: 0, files: null, doc: curDoc };
+  buildExport(); prepare();
+}
+function buildExport() {
+  $('#xTitle').textContent = 'Send "' + curDoc.title + '"';
+  $('#xFmt').innerHTML = [['pdf', 'PDF'], ['jpg', 'Images']].map(f => '<button class="chip' + (ex.fmt === f[0] ? ' on' : '') + '" data-f="' + f[0] + '">' + f[1] + '</button>').join('');
+  const known = CFG.targets.some(t => t.kb === ex.target);
+  $('#xSize').innerHTML = CFG.targets.map(t => '<button class="chip' + (ex.target === t.kb ? ' on' : '') + '" data-k="' + t.kb + '">' + t.label + '</button>').join('') +
+    '<button class="chip' + (!known ? ' on' : '') + '" data-k="custom">' + (known ? 'Custom...' : ex.target + ' KB') + '</button>';
+}
+$('#xFmt').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; ex.fmt = b.dataset.f; buildExport(); prepare(); });
+$('#xSize').addEventListener('click', e => {
+  const b = e.target.closest('[data-k]'); if (!b) return;
+  if (b.dataset.k === 'custom') {
+    const v = parseInt(prompt('Largest size in KB', ex.target || 300), 10);
+    if (!(v >= 20)) return; ex.target = v;
+  } else ex.target = +b.dataset.k;
+  S.target = ex.target; saveS(); buildExport(); prepare();
+});
+$('#xClose').onclick = back; $('#scrim').onclick = back;
+
+const safeName = t => (String(t).replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') || 'scan').slice(0, 60);
+
+async function prepare() {
+  const my = ++ex.token, doc = ex.doc, status = $('#xStatus');
+  $('#xSend').disabled = true; $('#xSave').disabled = true; ex.files = null;
+  status.className = 'status'; status.textContent = 'Preparing...';
+  const stillMine = () => ex && ex.token === my && curScreen === 'export';
+  try {
+    const rendered = [];
+    for (let i = 0; i < doc.pages.length; i++) {
+      status.textContent = 'Rendering page ' + (i + 1) + ' of ' + doc.pages.length + '...';
+      await tick(); if (!stillMine()) return;
+      const src = await getWork(doc.pages[i], Infinity);
+      rendered.push(renderPage(doc, doc.pages[i], src, S.dpi, null));
+    }
+    const dims = [];
+    const enc = async (scale, q) => {
+      const blobs = []; dims.length = 0;
+      for (const r of rendered) {
+        let c = r.canvas;
+        if (scale < 1) { c = mk(Math.max(1, Math.round(c.width * scale)), Math.max(1, Math.round(c.height * scale))); const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(r.canvas, 0, 0, c.width, c.height); }
+        dims.push({ w: c.width, h: c.height });
+        blobs.push(await toBlob(c, 'image/jpeg', q)); await tick();
+        if (!stillMine()) throw 'stale';
+      }
+      return blobs;
+    };
+    const overhead = ex.fmt === 'pdf' ? CFG.pdfOverhead * rendered.length : 0;
+    const total = bl => bl.reduce((s, b) => s + b.size, 0) + overhead;
+    let blobs, scale = 1, q = S.quality, reached = true;
+    status.textContent = 'Encoding...';
+    blobs = await enc(1, q);
+    if (ex.target) {
+      const limit = ex.target * 1024;
+      if (total(blobs) > limit) {
+        reached = false;
+        for (let si = 0; si < CFG.targetScales.length; si++) {
+          const sc = CFG.targetScales[si];
+          status.textContent = 'Shrinking to ' + ex.target + ' KB (try ' + (si + 1) + ')...';
+          let lo = CFG.targetMinQ, b = await enc(sc, lo);
+          if (total(b) > limit) { if (si < CFG.targetScales.length - 1) continue; blobs = b; scale = sc; q = lo; break; }
+          let best = b, bq = lo, hi = CFG.targetMaxQ;
+          for (let k = 0; k < 5; k++) {
+            const mid = (lo + hi) / 2, t = await enc(sc, mid);
+            if (total(t) <= limit) { best = t; bq = mid; lo = mid; } else hi = mid;
+          }
+          blobs = best; scale = sc; q = bq; reached = true;
+          dims.length = 0;
+          rendered.forEach(r => dims.push({ w: Math.max(1, Math.round(r.canvas.width * sc)), h: Math.max(1, Math.round(r.canvas.height * sc)) }));
+          break;
+        }
+        if (!reached) rendered.forEach((r, i) => { dims[i] = { w: Math.max(1, Math.round(r.canvas.width * scale)), h: Math.max(1, Math.round(r.canvas.height * scale)) }; });
+      }
+    }
+    if (!stillMine()) return;
+    const base = safeName(doc.title), files = [];
+    if (ex.fmt === 'pdf') {
+      const pages = [];
+      for (let i = 0; i < blobs.length; i++) {
+        pages.push({ jpeg: new Uint8Array(await blobs[i].arrayBuffer()), w: dims[i].w, h: dims[i].h,
+          wPt: rendered[i].L.pw / S.dpi * 72, hPt: rendered[i].L.ph / S.dpi * 72 });
+      }
+      const pdf = buildPdf(pages, doc.title);
+      files.push(new File([pdf], base + '.pdf', { type: 'application/pdf' }));
+    } else {
+      blobs.forEach((b, i) => files.push(new File([b], base + (blobs.length > 1 ? '-' + (i + 1) : '') + '.jpg', { type: 'image/jpeg' })));
+    }
+    ex.files = files;
+    const size = files.reduce((s, f) => s + f.size, 0);
+    const what = ex.fmt === 'pdf' ? 'PDF' : files.length + (files.length === 1 ? ' image' : ' images');
+    let msg = what + ' ready: ' + doc.pages.length + (doc.pages.length === 1 ? ' page' : ' pages') + ', ' + fmtSize(size);
+    if (ex.target) msg += reached ? ' (limit ' + fmtSize(ex.target * 1024) + ')' : '. Could not get under ' + fmtSize(ex.target * 1024) + '; this is the smallest it goes';
+    status.className = 'status ' + (reached ? 'ok' : 'warn'); status.textContent = msg;
+    $('#xSend').disabled = false; $('#xSave').disabled = false;
+  } catch (e) {
+    if (e === 'stale') return;
+    status.className = 'status warn'; status.textContent = 'Could not prepare: ' + (e && e.message ? e.message : e);
+  }
+}
+function download(files) {
+  files.forEach((f, i) => setTimeout(() => {
+    const a = document.createElement('a'), u = URL.createObjectURL(f);
+    a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(u), 15000);
+  }, i * 400));
+}
+$('#xSend').onclick = async () => {
+  if (!ex || !ex.files) return;
+  const files = ex.files;
+  if (navigator.canShare && navigator.canShare({ files })) {
+    try { await navigator.share({ files, title: ex.doc.title }); }
+    catch (e) { if (e.name !== 'AbortError') toast('Share failed: ' + e.message + '. Use Save to phone.'); }
+  } else { toast('Sharing files is not supported here. Saved instead.'); download(files); }
+};
+$('#xSave').onclick = () => { if (ex && ex.files) { download(ex.files); toast('Saved ' + ex.files.length + (ex.files.length === 1 ? ' file' : ' files')); } };
+
+/* ============ settings ============ */
+async function renderSettings() {
+  const opt = (map, cur) => Object.keys(map).map(k => '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + map[k] + '</option>').join('');
+  const sizes = {}; Object.keys(CFG.pageSizes).forEach(k => sizes[k] = CFG.pageSizes[k].name);
+  const presets = CFG.presetNames;
+  const themes = { slate: 'Slate', midnight: 'Midnight', forest: 'Forest', berry: 'Berry', light: 'Light' };
+  const dpis = {}; CFG.dpiChoices.forEach(d => dpis[d] = d + ' dpi' + (d === 150 ? ' (standard)' : d >= 300 ? ' (large files)' : ''));
+  $('#sBody').innerHTML =
+    '<span class="lbl" style="margin-top:0">Theme</span><select data-s="theme">' + opt(themes, S.theme) + '</select>' +
+    '<span class="lbl">New documents: page size</span><select data-s="pageSize">' + opt(sizes, S.pageSize) + '</select>' +
+    '<span class="lbl">New documents: fit</span><select data-s="fit">' + opt({ fit: 'Fit', fill: 'Fill', stretch: 'Stretch' }, S.fit) + '</select>' +
+    '<span class="lbl">New pages: cleanup</span><select data-s="preset">' + opt(presets, S.preset) + '</select>' +
+    '<span class="lbl">PDF resolution</span><select data-s="dpi">' + opt(dpis, S.dpi) + '</select>' +
+    '<label class="sl" style="grid-template-columns:130px 1fr 44px;margin-top:10px"><span>JPEG quality</span><input type="range" data-s="quality" min="50" max="95" step="1" value="' + Math.round(S.quality * 100) + '"><b>' + Math.round(S.quality * 100) + '%</b></label>' +
+    '<p class="hint">Quality is used when Size is "Best quality". A size limit lowers it as needed.</p>' +
+    '<span class="lbl">Storage</span><div class="status" id="stInfo">Checking...</div>' +
+    '<div class="row"><button class="btn sm" id="stPersist">Keep my data safe</button><button class="btn sm danger" id="stWipe">Delete all documents</button></div>' +
+    '<span class="lbl" style="margin-top:18px">About</span><div class="about">ScanDoc build ' + CFG.build + '<br>Everything stays on this phone. No accounts, no ads, no tracking. No third-party code.</div>';
+  updateStorage();
+}
+async function updateStorage() {
+  const el = $('#stInfo'); if (!el) return;
+  const n = (await dbAll('docs')).length;
+  let t = n + (n === 1 ? ' document' : ' documents');
+  try {
+    if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); t += ' \u00b7 ' + fmtSize(e.usage || 0) + ' used'; }
+    if (navigator.storage && navigator.storage.persisted) t += ' \u00b7 persistent storage: ' + ((await navigator.storage.persisted()) ? 'yes' : 'no');
+  } catch (e) {}
+  el.textContent = t;
+}
+$('#sBody').addEventListener('input', e => {
+  const k = e.target.dataset.s; if (!k) return;
+  if (k === 'quality') { S.quality = +e.target.value / 100; e.target.nextElementSibling.textContent = e.target.value + '%'; }
+  else S[k] = k === 'dpi' ? +e.target.value : e.target.value;
+  saveS(); if (k === 'theme') applyTheme();
+});
+$('#sBody').addEventListener('click', async e => {
+  if (e.target.id === 'stPersist') {
+    const ok = navigator.storage && navigator.storage.persist ? await navigator.storage.persist() : false;
+    toast(ok ? 'Storage is now persistent' : 'The browser did not grant persistent storage yet. Installing the app helps.'); updateStorage();
+  } else if (e.target.id === 'stWipe') {
+    if (!confirm('Delete ALL documents on this phone? This cannot be undone.')) return;
+    if (!confirm('Really delete everything?')) return;
+    await dbClear(); workCache.clear(); curDoc = null; toast('All documents deleted'); updateStorage();
+  }
+});
+$('#sBack').onclick = back;
+
+/* ============ sheet wiring ============ */
+
+/* ============ start ============ */
+(async function start() {
+  applyTheme();
+  try { await openDb(); } catch (e) { toast('Storage is not available in this browser'); return; }
+  history.replaceState({ s: 'home' }, '');
+  await refreshHome();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  const q = new URLSearchParams(location.search);
+  if (q.has('shared')) {
+    const files = [];
+    try {
+      const c = await caches.open('scandoc-share');
+      const keys = (await c.keys()).sort((a, b) => a.url.localeCompare(b.url, undefined, { numeric: true }));
+      for (const k of keys) {
+        const r = await c.match(k), b = await r.blob(), name = decodeURIComponent(k.url.split('/').pop());
+        files.push(new File([b], name, { type: b.type })); await c.delete(k);
+      }
+    } catch (e) {}
+    history.replaceState({ s: 'home' }, '', location.pathname);
+    if (files.length) { importTarget = null; importFiles(files); } else toast('Nothing was received');
+  }
+})();
+</script>
+</body>
+</html>
