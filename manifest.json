@@ -1,7 +1,7 @@
 {
   "name": "ScanDoc",
   "short_name": "ScanDoc",
-  "description": "Scan documents to clean, correctly sized PDFs. Everything stays on your phone.",
+  "description": "Scan documents to clean, correctly sized PDFs, extract text, and keep IDs in an encrypted vault. Everything stays on your phone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -18,7 +18,7 @@
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
-      "files": [ { "name": "images", "accept": ["image/*"] } ]
+      "files": [ { "name": "images", "accept": ["image/*", "application/pdf"] } ]
     }
   }
 }

@@ -1,7 +1,7 @@
 // ScanDoc service worker: network-first, plus the Android share target.
-const CACHE = 'scandoc-v1';          // bump when files are added
+const CACHE = 'scandoc-v2';          // bump when files are added
 const SHARE = 'scandoc-share';       // holds images shared in from other apps
-const FILES = ['./', 'index.html', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const FILES = ['./', 'index.html', 'config.js', 'engine.js', 'app.js', 'editor.js', 'vault.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -46,6 +46,13 @@ self.addEventListener('fetch', e => {
   }
   if (req.method !== 'GET' || url.origin !== location.origin) return;
   const key = url.origin + url.pathname;
+  if (url.pathname.includes('/lib/')) {      // big libraries (OCR, PDF reader): cache first, they never change
+    e.respondWith(caches.match(key).then(hit => hit || fetch(req).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); }
+      return res;
+    })));
+    return;
+  }
   e.respondWith(
     fetch(req, { cache: 'no-store' })
       .then(res => {

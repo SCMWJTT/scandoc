@@ -1,7 +1,7 @@
 // ScanDoc settings you can tune by hand.
 // Edit, commit, push. No build step.
 window.CONFIG = {
-  build: 1,
+  build: 2,
 
   // Images
   maxSide: 4096,       // stored original is shrunk to this long side (px). Strips EXIF/GPS too.
@@ -52,13 +52,34 @@ window.CONFIG = {
 
   // First-run defaults (changeable in Settings)
   defaults: {
-    theme: 'slate',
+    theme: 'linen',
     pageSize: 'letter',
     fit: 'fit',          // fit | fill | stretch
     margin: 0.25,        // inches (Fit and Original aspect only)
     dpi: 150,
     quality: 0.8,        // JPEG quality when "Best quality" is chosen
     preset: 'auto',      // cleanup applied to new pages
-    target: 0            // last compress-to-size choice (kb)
-  }
+    target: 0,           // last compress-to-size choice (kb)
+    lockMinutes: 2,      // vault auto-lock when idle
+    lockOnHide: true,    // vault locks when the app goes to the background
+    purpose: ''          // last purpose typed for a share-safe copy
+  },
+
+  // Look and feel (colours live in index.html)
+  themes: { linen: 'Linen', carbon: 'Carbon', studio: 'Studio' },
+
+  // New pages: how far in from the photo edge the corner handles start (0.04 = 4%)
+  defaultInset: 0.04,
+
+  // Vault
+  kdfIterations: 400000,   // PBKDF2 rounds. Higher = slower to guess, slower to unlock
+  minPassphrase: 6,
+  vaultCategories: ['Identity', 'Passport', 'Permit', 'Insurance', 'Other'],
+  lockChoices: [1, 2, 5, 10, 30],
+  expirySoonDays: 60,
+
+  // OCR and PDF import
+  ocrDpi: 200,             // resolution pages are rendered at for text recognition
+  pdfImportDpi: 200,       // resolution imported PDF pages are rasterised at
+  pdfImportMaxSide: 3400   // px cap on the long side of an imported PDF page
 };
